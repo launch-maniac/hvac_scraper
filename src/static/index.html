@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HVAC Business Scraper</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <style>
+        .loading {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Header -->
+    <header class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center py-6">
+                <div class="flex items-center">
+                    <i data-lucide="search" class="h-8 w-8 text-blue-600 mr-3"></i>
+                    <h1 class="text-2xl font-bold text-gray-900">HVAC Business Scraper</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button id="statsBtn" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                        <i data-lucide="bar-chart-3" class="h-4 w-4 inline mr-2"></i>
+                        Statistics
+                    </button>
+                    <button id="logoutBtn" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors">
+                        <i data-lucide="log-out" class="h-4 w-4 inline mr-2"></i>
+                        Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Create Job Section -->
+        <div class="bg-white rounded-lg shadow-sm border p-6 mb-8">
+            <h2 class="text-xl font-semibold text-gray-900 mb-6">Create New Scraping Job</h2>
+            
+            <form id="jobForm" class="space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="jobName" class="block text-sm font-medium text-gray-700 mb-2">Job Name</label>
+                        <input type="text" id="jobName" name="jobName" required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               placeholder="e.g., Boise Area HVAC Companies">
+                    </div>
+                    
+                    <div>
+                        <label for="businessType" class="block text-sm font-medium text-gray-700 mb-2">Business Type</label>
+                        <select id="businessType" name="businessType"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="HVAC">HVAC</option>
+                            <option value="Plumbing">Plumbing</option>
+                            <option value="Electrical">Electrical</option>
+                            <option value="General Contractor">General Contractor</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label for="locations" class="block text-sm font-medium text-gray-700 mb-2">Locations (one per line)</label>
+                    <textarea id="locations" name="locations" rows="4" required
+                              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              placeholder="Kuna, Idaho&#10;Star, Idaho&#10;Middleton, Idaho&#10;Emmett, Idaho&#10;Mountain Home, Idaho"></textarea>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="maxReviews" class="block text-sm font-medium text-gray-700 mb-2">Max Review Count</label>
+                        <input type="number" id="maxReviews" name="maxReviews" value="20" min="0" max="100"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    
+                    <div>
+                        <label for="minQuality" class="block text-sm font-medium text-gray-700 mb-2">Min Quality Score (%)</label>
+                        <input type="number" id="minQuality" name="minQuality" value="40" min="0" max="100"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+
+                <div class="flex justify-end">
+                    <button type="submit" id="createJobBtn"
+                            class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center">
+                        <i data-lucide="plus" class="h-4 w-4 mr-2"></i>
+                        Create Job
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Jobs List Section -->
+        <div class="bg-white rounded-lg shadow-sm border">
+            <div class="p-6 border-b">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-xl font-semibold text-gray-900">Scraping Jobs</h2>
+                    <button id="refreshBtn" class="text-blue-600 hover:text-blue-700 transition-colors">
+                        <i data-lucide="refresh-cw" class="h-5 w-5"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div id="jobsList" class="divide-y divide-gray-200">
+                <!-- Jobs will be loaded here -->
+            </div>
+        </div>
+    </main>
+
+    <!-- Statistics Modal -->
+    <div id="statsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-lg max-w-2xl w-full p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-lg font-semibold text-gray-900">System Statistics</h3>
+                    <button id="closeStatsBtn" class="text-gray-400 hover:text-gray-600">
+                        <i data-lucide="x" class="h-6 w-6"></i>
+                    </button>
+                </div>
+                <div id="statsContent">
+                    <!-- Stats will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Job Details Modal -->
+    <div id="jobModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                <div class="p-6 border-b">
+                    <div class="flex justify-between items-center">
+                        <h3 id="jobModalTitle" class="text-lg font-semibold text-gray-900"></h3>
+                        <button id="closeJobBtn" class="text-gray-400 hover:text-gray-600">
+                            <i data-lucide="x" class="h-6 w-6"></i>
+                        </button>
+                    </div>
+                </div>
+                <div id="jobModalContent" class="p-6">
+                    <!-- Job details will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let currentJobs = [];
+        let currentJobId = null;
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            lucide.createIcons();
+            loadJobs();
+            setupEventListeners();
+        });
+
+        // Setup event listeners
+        function setupEventListeners() {
+            document.getElementById('jobForm').addEventListener('submit', createJob);
+            document.getElementById('refreshBtn').addEventListener('click', loadJobs);
+            document.getElementById('statsBtn').addEventListener('click', showStats);
+            document.getElementById('logoutBtn').addEventListener('click', logout);
+            document.getElementById('closeStatsBtn').addEventListener('click', hideStats);
+            document.getElementById('closeJobBtn').addEventListener('click', hideJobModal);
+        }
+
+        // API functions
+        async function apiCall(endpoint, options = {}) {
+            try {
+                const response = await fetch(`/api/scraping${endpoint}`, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    },
+                    ...options
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                return await response.json();
+            } catch (error) {
+                console.error('API call failed:', error);
+                showNotification('API call failed: ' + error.message, 'error');
+                throw error;
+            }
+        }
+
+        // Create new job
+        async function createJob(event) {
+            event.preventDefault();
+            
+            const formData = new FormData(event.target);
+            const locations = formData.get('locations').split('\n').map(l => l.trim()).filter(l => l);
+            
+            const jobData = {
+                job_name: formData.get('jobName'),
+                business_type: formData.get('businessType'),
+                locations: locations,
+                max_reviews: parseInt(formData.get('maxReviews')),
+                min_quality_score: parseFloat(formData.get('minQuality'))
+            };
+
+            try {
+                const button = document.getElementById('createJobBtn');
+                button.disabled = true;
+                button.innerHTML = '<i data-lucide="loader" class="h-4 w-4 mr-2 loading"></i>Creating...';
+                
+                const result = await apiCall('/jobs', {
+                    method: 'POST',
+                    body: JSON.stringify(jobData)
+                });
+
+                if (result.success) {
+                    showNotification('Job created successfully!', 'success');
+                    event.target.reset();
+                    loadJobs();
+                } else {
+                    showNotification('Failed to create job: ' + result.error, 'error');
+                }
+            } catch (error) {
+                showNotification('Error creating job', 'error');
+            } finally {
+                const button = document.getElementById('createJobBtn');
+                button.disabled = false;
+                button.innerHTML = '<i data-lucide="plus" class="h-4 w-4 mr-2"></i>Create Job';
+                lucide.createIcons();
+            }
+        }
+
+        // Load jobs list
+        async function loadJobs() {
+            try {
+                const result = await apiCall('/jobs');
+                if (result.success) {
+                    currentJobs = result.jobs;
+                    renderJobs(result.jobs);
+                }
+            } catch (error) {
+                showNotification('Error loading jobs', 'error');
+            }
+        }
+
+        // Render jobs list
+        function renderJobs(jobs) {
+            const container = document.getElementById('jobsList');
+            
+            if (jobs.length === 0) {
+                container.innerHTML = `
+                    <div class="p-8 text-center text-gray-500">
+                        <i data-lucide="search" class="h-12 w-12 mx-auto mb-4 text-gray-300"></i>
+                        <p>No scraping jobs found. Create your first job above.</p>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            container.innerHTML = jobs.map(job => `
+                <div class="p-6 hover:bg-gray-50 transition-colors">
+                    <div class="flex items-center justify-between">
+                        <div class="flex-1">
+                            <div class="flex items-center space-x-3">
+                                <h3 class="text-lg font-medium text-gray-900">${job.job_name}</h3>
+                                <span class="px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(job.status)}">
+                                    ${job.status}
+                                </span>
+                            </div>
+                            <div class="mt-2 text-sm text-gray-600">
+                                <p><strong>Locations:</strong> ${job.locations.join(', ')}</p>
+                                <p><strong>Business Type:</strong> ${job.business_type}</p>
+                                <p><strong>Created:</strong> ${formatDate(job.created_at)}</p>
+                                ${job.total_businesses_found > 0 ? `<p><strong>Results:</strong> ${job.businesses_meeting_criteria} of ${job.total_businesses_found} businesses</p>` : ''}
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            ${job.status === 'pending' ? `
+                                <button onclick="startJob(${job.id})" class="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 transition-colors">
+                                    <i data-lucide="play" class="h-4 w-4 inline mr-1"></i>Start
+                                </button>
+                            ` : ''}
+                            ${job.status === 'running' ? `
+                                <button onclick="cancelJob(${job.id})" class="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700 transition-colors">
+                                    <i data-lucide="square" class="h-4 w-4 inline mr-1"></i>Cancel
+                                </button>
+                            ` : ''}
+                            ${job.status === 'completed' ? `
+                                <button onclick="downloadReport(${job.id}, 'excel')" class="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition-colors">
+                                    <i data-lucide="download" class="h-4 w-4 inline mr-1"></i>Excel
+                                </button>
+                                <button onclick="downloadReport(${job.id}, 'csv')" class="bg-gray-600 text-white px-3 py-1 rounded text-sm hover:bg-gray-700 transition-colors">
+                                    CSV
+                                </button>
+                            ` : ''}
+                            <button onclick="showJobDetails(${job.id})" class="text-blue-600 hover:text-blue-700 transition-colors">
+                                <i data-lucide="eye" class="h-4 w-4"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            
+            lucide.createIcons();
+        }
+
+        // Start a job
+        async function startJob(jobId) {
+            try {
+                const result = await apiCall(`/jobs/${jobId}/start`, { method: 'POST' });
+                if (result.success) {
+                    showNotification('Job started successfully!', 'success');
+                    loadJobs();
+                } else {
+                    showNotification('Failed to start job: ' + result.error, 'error');
+                }
+            } catch (error) {
+                showNotification('Error starting job', 'error');
+            }
+        }
+
+        // Cancel a job
+        async function cancelJob(jobId) {
+            if (!confirm('Are you sure you want to cancel this job?')) return;
+            
+            try {
+                const result = await apiCall(`/jobs/${jobId}/cancel`, { method: 'POST' });
+                if (result.success) {
+                    showNotification('Job cancelled successfully!', 'success');
+                    loadJobs();
+                } else {
+                    showNotification('Failed to cancel job: ' + result.error, 'error');
+                }
+            } catch (error) {
+                showNotification('Error cancelling job', 'error');
+            }
+        }
+
+        // Download report
+        async function downloadReport(jobId, type) {
+            try {
+                const response = await fetch(`/api/scraping/jobs/${jobId}/reports/${type}`);
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `hvac_report_${jobId}.${type === 'excel' ? 'xlsx' : type}`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                    showNotification('Report downloaded successfully!', 'success');
+                } else {
+                    showNotification('Failed to download report', 'error');
+                }
+            } catch (error) {
+                showNotification('Error downloading report', 'error');
+            }
+        }
+
+        // Show job details
+        async function showJobDetails(jobId) {
+            try {
+                const result = await apiCall(`/jobs/${jobId}`);
+                if (result.success) {
+                    currentJobId = jobId;
+                    renderJobDetails(result.job);
+                    document.getElementById('jobModal').classList.remove('hidden');
+                }
+            } catch (error) {
+                showNotification('Error loading job details', 'error');
+            }
+        }
+
+        // Render job details
+        function renderJobDetails(job) {
+            document.getElementById('jobModalTitle').textContent = job.job_name;
+            
+            const content = document.getElementById('jobModalContent');
+            content.innerHTML = `
+                <div class="space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <h4 class="font-medium text-gray-900 mb-2">Job Information</h4>
+                            <dl class="space-y-1 text-sm">
+                                <div><dt class="inline font-medium">Status:</dt> <dd class="inline"><span class="px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(job.status)}">${job.status}</span></dd></div>
+                                <div><dt class="inline font-medium">Business Type:</dt> <dd class="inline">${job.business_type}</dd></div>
+                                <div><dt class="inline font-medium">Max Reviews:</dt> <dd class="inline">${job.max_reviews}</dd></div>
+                                <div><dt class="inline font-medium">Min Quality:</dt> <dd class="inline">${job.min_quality_score}%</dd></div>
+                            </dl>
+                        </div>
+                        <div>
+                            <h4 class="font-medium text-gray-900 mb-2">Timing</h4>
+                            <dl class="space-y-1 text-sm">
+                                <div><dt class="inline font-medium">Created:</dt> <dd class="inline">${formatDate(job.created_at)}</dd></div>
+                                ${job.started_at ? `<div><dt class="inline font-medium">Started:</dt> <dd class="inline">${formatDate(job.started_at)}</dd></div>` : ''}
+                                ${job.completed_at ? `<div><dt class="inline font-medium">Completed:</dt> <dd class="inline">${formatDate(job.completed_at)}</dd></div>` : ''}
+                            </dl>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h4 class="font-medium text-gray-900 mb-2">Locations</h4>
+                        <div class="flex flex-wrap gap-2">
+                            ${job.locations.map(location => `<span class="px-2 py-1 bg-gray-100 text-gray-700 rounded text-sm">${location}</span>`).join('')}
+                        </div>
+                    </div>
+                    
+                    ${job.total_businesses_found > 0 ? `
+                        <div>
+                            <h4 class="font-medium text-gray-900 mb-2">Results</h4>
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <div class="grid grid-cols-2 gap-4 text-center">
+                                    <div>
+                                        <div class="text-2xl font-bold text-blue-600">${job.total_businesses_found}</div>
+                                        <div class="text-sm text-gray-600">Total Found</div>
+                                    </div>
+                                    <div>
+                                        <div class="text-2xl font-bold text-green-600">${job.businesses_meeting_criteria}</div>
+                                        <div class="text-sm text-gray-600">Meeting Criteria</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ` : ''}
+                    
+                    ${job.error_message ? `
+                        <div>
+                            <h4 class="font-medium text-red-900 mb-2">Error</h4>
+                            <div class="bg-red-50 border border-red-200 p-3 rounded text-sm text-red-700">
+                                ${job.error_message}
+                            </div>
+                        </div>
+                    ` : ''}
+                    
+                    ${job.status === 'completed' ? `
+                        <div>
+                            <h4 class="font-medium text-gray-900 mb-2">Download Reports</h4>
+                            <div class="flex space-x-2">
+                                <button onclick="downloadReport(${job.id}, 'excel')" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors">
+                                    <i data-lucide="download" class="h-4 w-4 inline mr-2"></i>Excel Report
+                                </button>
+                                <button onclick="downloadReport(${job.id}, 'csv')" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 transition-colors">
+                                    <i data-lucide="download" class="h-4 w-4 inline mr-2"></i>CSV Data
+                                </button>
+                                <button onclick="downloadReport(${job.id}, 'json')" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition-colors">
+                                    <i data-lucide="download" class="h-4 w-4 inline mr-2"></i>JSON Data
+                                </button>
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+            
+            lucide.createIcons();
+        }
+
+        // Show statistics
+        async function showStats() {
+            try {
+                const result = await apiCall('/stats');
+                if (result.success) {
+                    renderStats(result.stats, result.recent_jobs);
+                    document.getElementById('statsModal').classList.remove('hidden');
+                }
+            } catch (error) {
+                showNotification('Error loading statistics', 'error');
+            }
+        }
+
+        // Render statistics
+        function renderStats(stats, recentJobs) {
+            const content = document.getElementById('statsContent');
+            content.innerHTML = `
+                <div class="space-y-6">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="bg-blue-50 p-4 rounded-lg text-center">
+                            <div class="text-2xl font-bold text-blue-600">${stats.total_jobs}</div>
+                            <div class="text-sm text-blue-700">Total Jobs</div>
+                        </div>
+                        <div class="bg-green-50 p-4 rounded-lg text-center">
+                            <div class="text-2xl font-bold text-green-600">${stats.completed_jobs}</div>
+                            <div class="text-sm text-green-700">Completed</div>
+                        </div>
+                        <div class="bg-yellow-50 p-4 rounded-lg text-center">
+                            <div class="text-2xl font-bold text-yellow-600">${stats.running_jobs}</div>
+                            <div class="text-sm text-yellow-700">Running</div>
+                        </div>
+                        <div class="bg-red-50 p-4 rounded-lg text-center">
+                            <div class="text-2xl font-bold text-red-600">${stats.failed_jobs}</div>
+                            <div class="text-sm text-red-700">Failed</div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gray-50 p-4 rounded-lg text-center">
+                        <div class="text-3xl font-bold text-gray-800">${stats.total_businesses}</div>
+                        <div class="text-sm text-gray-600">Total Businesses Scraped</div>
+                    </div>
+                    
+                    ${recentJobs.length > 0 ? `
+                        <div>
+                            <h4 class="font-medium text-gray-900 mb-3">Recent Jobs</h4>
+                            <div class="space-y-2">
+                                ${recentJobs.map(job => `
+                                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded">
+                                        <div>
+                                            <div class="font-medium">${job.job_name}</div>
+                                            <div class="text-sm text-gray-600">${formatDate(job.created_at)}</div>
+                                        </div>
+                                        <span class="px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(job.status)}">
+                                            ${job.status}
+                                        </span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        // Hide modals
+        function hideStats() {
+            document.getElementById('statsModal').classList.add('hidden');
+        }
+
+        function hideJobModal() {
+            document.getElementById('jobModal').classList.add('hidden');
+            currentJobId = null;
+        }
+
+        // Logout function
+        async function logout() {
+            if (!confirm('Are you sure you want to logout?')) return;
+            
+            try {
+                const response = await fetch('/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    window.location.href = result.redirect || '/login';
+                } else {
+                    showNotification('Logout failed', 'error');
+                }
+            } catch (error) {
+                showNotification('Logout error', 'error');
+            }
+        }
+
+        // Utility functions
+        function getStatusColor(status) {
+            const colors = {
+                pending: 'bg-yellow-100 text-yellow-800',
+                running: 'bg-blue-100 text-blue-800',
+                completed: 'bg-green-100 text-green-800',
+                failed: 'bg-red-100 text-red-800',
+                cancelled: 'bg-gray-100 text-gray-800'
+            };
+            return colors[status] || 'bg-gray-100 text-gray-800';
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return 'N/A';
+            return new Date(dateString).toLocaleString();
+        }
+
+        function showNotification(message, type = 'info') {
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
+                type === 'success' ? 'bg-green-500 text-white' :
+                type === 'error' ? 'bg-red-500 text-white' :
+                'bg-blue-500 text-white'
+            }`;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            // Remove after 3 seconds
+            setTimeout(() => {
+                document.body.removeChild(notification);
+            }, 3000);
+        }
+
+        // Auto-refresh jobs every 30 seconds
+        setInterval(loadJobs, 30000);
+    </script>
+</body>
+</html>
