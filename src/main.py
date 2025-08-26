@@ -64,6 +64,7 @@ def protect_scraping_routes():
 app.register_blueprint(scraping_bp, url_prefix='/api/scraping')
 
 if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
     print("\n" + "="*60)
     print("🔐 HVAC Scraper - Secure Personal Access")
     print("="*60)
@@ -76,4 +77,4 @@ if __name__ == '__main__':
     print("   LOGIN_PASSWORD=your_password")
     print("="*60 + "\n")
     
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(debug=False, host='0.0.0.0', port=port)
