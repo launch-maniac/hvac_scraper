@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  hvac-scraper:
+    build: .
+    container_name: hvac-scraper
+    restart: unless-stopped
+    ports:
+      - "5001:5000"
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/src/database
+      - ./reports:/app/reports
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/login"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - hvac-network
+
+networks:
+  hvac-network:
+    driver: bridge
