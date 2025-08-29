@@ -19,11 +19,11 @@ if [ ! -f "src/main.py" ]; then
 fi
 
 # Configuration
-SERVER_IP="5.78.125.147"
-DOMAIN="hvac.mopsy.io"
+SERVER_IP="5.78.159.106"
+DOMAIN="listbuilder.mopsy.io"
 PORT="5001"
-USERNAME="Jake"
-PASSWORD="JakeWhitbeck"
+USERNAME="admin"
+PASSWORD="8765309!"
 
 echo "📋 Configuration:"
 echo "   Server: $SERVER_IP"
